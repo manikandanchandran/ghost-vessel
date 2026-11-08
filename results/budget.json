@@ -1,0 +1,455 @@
+{
+ "etb_fields": {
+  "header": 24,
+  "key": 128,
+  "utc": 6
+ },
+ "commit_bits": 740,
+ "commit_slots": 5,
+ "commit_fragments": [
+  528,
+  232
+ ],
+ "ratdma_cap": 20,
+ "msg8_app": {
+  "1": 80,
+  "2": 304,
+  "3": 528
+ },
+ "per_interval": {
+  "180": {
+   "label": "3 min",
+   "etb32": {
+    "slots": 2,
+    "entries": 1,
+    "delta_s": 180.0,
+    "extra_slots_min": 0.75,
+    "bits": 190,
+    "reports_per_min": 0.3333333333333333,
+    "overhead_pct": 225.0,
+    "latency_s": 540.0
+   },
+   "etb64": {
+    "slots": 2,
+    "entries": 1,
+    "delta_s": 180.0,
+    "extra_slots_min": 0.75,
+    "bits": 222,
+    "reports_per_min": 0.3333333333333333,
+    "overhead_pct": 225.0,
+    "latency_s": 540.0
+   },
+   "schemes": [
+    {
+     "key": "legacy",
+     "scheme": "No authentication",
+     "extra": 0.0,
+     "base": 0.3333333333333333,
+     "total": 0.3333333333333333,
+     "overhead_pct": 0.0,
+     "ratdma_ok": true
+    },
+    {
+     "key": "sig",
+     "scheme": "Per-report signature, 512-bit Ed25519 (3-slot Msg 8)",
+     "extra": 1.0,
+     "base": 0.3333333333333333,
+     "total": 1.3333333333333333,
+     "overhead_pct": 300.0,
+     "ratdma_ok": true
+    },
+    {
+     "key": "mac",
+     "scheme": "Per-report MAC, 32-bit, shared key (Msg 25)",
+     "extra": 0.3333333333333333,
+     "base": 0.3333333333333333,
+     "total": 0.6666666666666666,
+     "overhead_pct": 99.99999999999999,
+     "ratdma_ok": true
+    },
+    {
+     "key": "etb32",
+     "scheme": "ETB, 32-bit tags (proposed)",
+     "extra": 0.75,
+     "base": 0.3333333333333333,
+     "total": 1.0833333333333333,
+     "overhead_pct": 225.0,
+     "ratdma_ok": true
+    },
+    {
+     "key": "etb64",
+     "scheme": "ETB, 64-bit tags",
+     "extra": 0.75,
+     "base": 0.3333333333333333,
+     "total": 1.0833333333333333,
+     "overhead_pct": 225.0,
+     "ratdma_ok": true
+    }
+   ]
+  },
+  "10": {
+   "label": "10 s",
+   "etb32": {
+    "slots": 3,
+    "entries": 6,
+    "delta_s": 60.0,
+    "extra_slots_min": 3.0833333333333335,
+    "bits": 380,
+    "reports_per_min": 6.0,
+    "overhead_pct": 51.38888888888889,
+    "latency_s": 180.0
+   },
+   "etb64": {
+    "slots": 3,
+    "entries": 5,
+    "delta_s": 50.0,
+    "extra_slots_min": 3.683333333333333,
+    "bits": 502,
+    "reports_per_min": 6.0,
+    "overhead_pct": 61.388888888888886,
+    "latency_s": 150.0
+   },
+   "schemes": [
+    {
+     "key": "legacy",
+     "scheme": "No authentication",
+     "extra": 0.0,
+     "base": 6.0,
+     "total": 6.0,
+     "overhead_pct": 0.0,
+     "ratdma_ok": true
+    },
+    {
+     "key": "sig",
+     "scheme": "Per-report signature, 512-bit Ed25519 (3-slot Msg 8)",
+     "extra": 18.0,
+     "base": 6.0,
+     "total": 24.0,
+     "overhead_pct": 300.0,
+     "ratdma_ok": true
+    },
+    {
+     "key": "mac",
+     "scheme": "Per-report MAC, 32-bit, shared key (Msg 25)",
+     "extra": 6.0,
+     "base": 6.0,
+     "total": 12.0,
+     "overhead_pct": 100.0,
+     "ratdma_ok": true
+    },
+    {
+     "key": "etb32",
+     "scheme": "ETB, 32-bit tags (proposed)",
+     "extra": 3.0833333333333335,
+     "base": 6.0,
+     "total": 9.083333333333334,
+     "overhead_pct": 51.38888888888889,
+     "ratdma_ok": true
+    },
+    {
+     "key": "etb64",
+     "scheme": "ETB, 64-bit tags",
+     "extra": 3.683333333333333,
+     "base": 6.0,
+     "total": 9.683333333333334,
+     "overhead_pct": 61.388888888888886,
+     "ratdma_ok": true
+    }
+   ]
+  },
+  "6": {
+   "label": "6 s",
+   "etb32": {
+    "slots": 3,
+    "entries": 9,
+    "delta_s": 54.0,
+    "extra_slots_min": 3.416666666666667,
+    "bits": 494,
+    "reports_per_min": 10.0,
+    "overhead_pct": 34.16666666666667,
+    "latency_s": 162.0
+   },
+   "etb64": {
+    "slots": 3,
+    "entries": 5,
+    "delta_s": 30.0,
+    "extra_slots_min": 6.083333333333333,
+    "bits": 502,
+    "reports_per_min": 10.0,
+    "overhead_pct": 60.83333333333333,
+    "latency_s": 90.0
+   },
+   "schemes": [
+    {
+     "key": "legacy",
+     "scheme": "No authentication",
+     "extra": 0.0,
+     "base": 10.0,
+     "total": 10.0,
+     "overhead_pct": 0.0,
+     "ratdma_ok": true
+    },
+    {
+     "key": "sig",
+     "scheme": "Per-report signature, 512-bit Ed25519 (3-slot Msg 8)",
+     "extra": 30.0,
+     "base": 10.0,
+     "total": 40.0,
+     "overhead_pct": 300.0,
+     "ratdma_ok": false
+    },
+    {
+     "key": "mac",
+     "scheme": "Per-report MAC, 32-bit, shared key (Msg 25)",
+     "extra": 10.0,
+     "base": 10.0,
+     "total": 20.0,
+     "overhead_pct": 100.0,
+     "ratdma_ok": true
+    },
+    {
+     "key": "etb32",
+     "scheme": "ETB, 32-bit tags (proposed)",
+     "extra": 3.416666666666667,
+     "base": 10.0,
+     "total": 13.416666666666668,
+     "overhead_pct": 34.16666666666667,
+     "ratdma_ok": true
+    },
+    {
+     "key": "etb64",
+     "scheme": "ETB, 64-bit tags",
+     "extra": 6.083333333333333,
+     "base": 10.0,
+     "total": 16.083333333333332,
+     "overhead_pct": 60.83333333333333,
+     "ratdma_ok": true
+    }
+   ]
+  },
+  "3.33": {
+   "label": "3 1/3 s",
+   "etb32": {
+    "slots": 3,
+    "entries": 9,
+    "delta_s": 30.0,
+    "extra_slots_min": 6.083333333333333,
+    "bits": 494,
+    "reports_per_min": 18.0,
+    "overhead_pct": 33.79629629629629,
+    "latency_s": 90.0
+   },
+   "etb64": {
+    "slots": 3,
+    "entries": 5,
+    "delta_s": 16.666666666666668,
+    "extra_slots_min": 10.883333333333333,
+    "bits": 502,
+    "reports_per_min": 18.0,
+    "overhead_pct": 60.46296296296296,
+    "latency_s": 50.0
+   },
+   "schemes": [
+    {
+     "key": "legacy",
+     "scheme": "No authentication",
+     "extra": 0.0,
+     "base": 18.0,
+     "total": 18.0,
+     "overhead_pct": 0.0,
+     "ratdma_ok": true
+    },
+    {
+     "key": "sig",
+     "scheme": "Per-report signature, 512-bit Ed25519 (3-slot Msg 8)",
+     "extra": 54.0,
+     "base": 18.0,
+     "total": 72.0,
+     "overhead_pct": 300.0,
+     "ratdma_ok": false
+    },
+    {
+     "key": "mac",
+     "scheme": "Per-report MAC, 32-bit, shared key (Msg 25)",
+     "extra": 18.0,
+     "base": 18.0,
+     "total": 36.0,
+     "overhead_pct": 100.0,
+     "ratdma_ok": true
+    },
+    {
+     "key": "etb32",
+     "scheme": "ETB, 32-bit tags (proposed)",
+     "extra": 6.083333333333333,
+     "base": 18.0,
+     "total": 24.083333333333332,
+     "overhead_pct": 33.79629629629629,
+     "ratdma_ok": true
+    },
+    {
+     "key": "etb64",
+     "scheme": "ETB, 64-bit tags",
+     "extra": 10.883333333333333,
+     "base": 18.0,
+     "total": 28.883333333333333,
+     "overhead_pct": 60.46296296296296,
+     "ratdma_ok": true
+    }
+   ]
+  },
+  "2": {
+   "label": "2 s",
+   "etb32": {
+    "slots": 3,
+    "entries": 9,
+    "delta_s": 18.0,
+    "extra_slots_min": 10.083333333333334,
+    "bits": 494,
+    "reports_per_min": 30.0,
+    "overhead_pct": 33.611111111111114,
+    "latency_s": 54.0
+   },
+   "etb64": {
+    "slots": 3,
+    "entries": 5,
+    "delta_s": 10.0,
+    "extra_slots_min": 18.083333333333332,
+    "bits": 502,
+    "reports_per_min": 30.0,
+    "overhead_pct": 60.27777777777778,
+    "latency_s": 30.0
+   },
+   "schemes": [
+    {
+     "key": "legacy",
+     "scheme": "No authentication",
+     "extra": 0.0,
+     "base": 30.0,
+     "total": 30.0,
+     "overhead_pct": 0.0,
+     "ratdma_ok": true
+    },
+    {
+     "key": "sig",
+     "scheme": "Per-report signature, 512-bit Ed25519 (3-slot Msg 8)",
+     "extra": 90.0,
+     "base": 30.0,
+     "total": 120.0,
+     "overhead_pct": 300.0,
+     "ratdma_ok": false
+    },
+    {
+     "key": "mac",
+     "scheme": "Per-report MAC, 32-bit, shared key (Msg 25)",
+     "extra": 30.0,
+     "base": 30.0,
+     "total": 60.0,
+     "overhead_pct": 100.0,
+     "ratdma_ok": false
+    },
+    {
+     "key": "etb32",
+     "scheme": "ETB, 32-bit tags (proposed)",
+     "extra": 10.083333333333334,
+     "base": 30.0,
+     "total": 40.083333333333336,
+     "overhead_pct": 33.611111111111114,
+     "ratdma_ok": true
+    },
+    {
+     "key": "etb64",
+     "scheme": "ETB, 64-bit tags",
+     "extra": 18.083333333333332,
+     "base": 30.0,
+     "total": 48.08333333333333,
+     "overhead_pct": 60.27777777777778,
+     "ratdma_ok": true
+    }
+   ]
+  }
+ },
+ "alt10": {
+  "delta_s": 90.0,
+  "entries": 9,
+  "slots": 3,
+  "extra_slots_min": 2.0833333333333335,
+  "overhead_pct": 34.72222222222222,
+  "latency_s": 270
+ },
+ "simultaneous_cargo_tanker_vessels": {
+  "median": 78.0,
+  "p95": 96.0,
+  "max": 113
+ },
+ "vdl_load_pct_10s": [
+  {
+   "N": 100,
+   "legacy": 13.333333333333334,
+   "sig": 53.333333333333336,
+   "mac": 26.666666666666668,
+   "etb32": 20.185185185185187,
+   "etb64": 21.51851851851852
+  },
+  {
+   "N": 250,
+   "legacy": 33.333333333333336,
+   "sig": 133.33333333333334,
+   "mac": 66.66666666666667,
+   "etb32": 50.46296296296296,
+   "etb64": 53.7962962962963
+  },
+  {
+   "N": 500,
+   "legacy": 66.66666666666667,
+   "sig": 266.6666666666667,
+   "mac": 133.33333333333334,
+   "etb32": 100.92592592592592,
+   "etb64": 107.5925925925926
+  },
+  {
+   "N": 750,
+   "legacy": 100.0,
+   "sig": 400.0,
+   "mac": 200.0,
+   "etb32": 151.38888888888889,
+   "etb64": 161.38888888888889
+  }
+ ],
+ "max_vessels_10s": {
+  "legacy": {
+   "at50": 375,
+   "at100": 750
+  },
+  "sig": {
+   "at50": 93,
+   "at100": 187
+  },
+  "mac": {
+   "at50": 187,
+   "at100": 375
+  },
+  "etb32": {
+   "at50": 247,
+   "at100": 495
+  },
+  "etb64": {
+   "at50": 232,
+   "at100": 464
+  }
+ },
+ "forgery": {
+  "per_attempt": 2.3283064365386963e-10,
+  "max_entries_per_epoch_key": 60,
+  "any_report_per_epoch_key_nocap": 1.3969838619232178e-08,
+  "fail_cap_per_chain": 16,
+  "any_report_per_chain": 3.958120942115784e-09,
+  "fabricated_track_per_chain": 1.566672139241554e-17
+ },
+ "handshake_bytes": {
+  "ClientHello": 221,
+  "ServerHello": 315,
+  "VesselFinished": 97,
+  "compact_cert": 145,
+  "total": 633
+ }
+}

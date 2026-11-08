@@ -1,0 +1,97 @@
+theory SecureAIS_Handshake
+begin
+
+/*
+  Secure-AIS H1: TLS-1.3-style 1-RTT signed-ephemeral-DH handshake between a vessel V and
+  an infrastructure node S (coastal station or satellite/VDES gateway), run only over
+  satellite/VDES links, never in VHF AIS slots.
+  Concrete primitives: X25519 (exp), Ed25519 or ECDSA-P256 (sign), HKDF-SHA256 (kdf),
+  HMAC-SHA256 (mac). Long-term keys are certified by the Maritime PKI (!Pk facts).
+  Signature verification uses verify(.) against the certified public key (Equality restriction).
+  Threat model: Dolev-Yao network adversary; long-term keys may be revealed at any time.
+*/
+
+builtins: diffie-hellman, signing, hashing
+functions: mac/2, kdf/2
+
+rule Register_pk:
+  [ Fr(~ltk) ] --[ Register($A) ]-> [ !Ltk($A, ~ltk), !Pk($A, pk(~ltk)), Out(pk(~ltk)) ]
+
+rule Reveal_ltk:
+  [ !Ltk($A, ltk) ] --[ RevLtk($A) ]-> [ Out(ltk) ]
+
+// ClientHello: vessel identity (MMSI-bound certificate), nonce, ephemeral share
+rule V_hello:
+  [ Fr(~x), Fr(~nv), !Ltk($V, ltkV) ]
+  --[ Start($V, $S) ]->
+  [ V1($V, $S, ~x, ~nv), Out(<'CH', $V, $S, ~nv, 'g'^~x>) ]
+
+// ServerHello + CertificateVerify + Finished (one flight)
+rule S_hello:
+  let gy  = 'g'^~y
+      tr  = <'CH', $V, $S, nv, gx, 'SH', ~ns, gy>
+      k   = kdf(gx^~y, tr)
+      sgS = sign(h(tr), ~ltkS)
+  in
+  [ In(<'CH', $V, $S, nv, gx>), Fr(~y), Fr(~ns), !Ltk($S, ~ltkS) ]
+  --[ Running_S($S, $V, k), Neq(gx, 'g') ]->
+  [ S1($S, $V, k, tr, sgS), Out(<'SH', ~ns, gy, sgS, mac(kdf(k, 'sfin'), h(<tr, sgS>))>) ]
+
+// vessel verifies the infrastructure signature and Finished, sends its own
+rule V_finish:
+  let gx  = 'g'^~x
+      tr  = <'CH', $V, $S, ~nv, gx, 'SH', ns, gy>
+      k   = kdf(gy^~x, tr)
+      sgV = sign(h(<tr, sgS>), ~ltkV)
+  in
+  [ V1($V, $S, ~x, ~nv), !Pk($S, pkS), !Ltk($V, ~ltkV),
+    In(<'SH', ns, gy, sgS, mac(kdf(k, 'sfin'), h(<tr, sgS>))>) ]
+  --[ Eq(verify(sgS, h(tr), pkS), true),
+      Commit_V($V, $S, k), Running_V($V, $S, k), SessKeyV($V, $S, k) ]->
+  [ Out(<'VF', sgV, mac(kdf(k, 'vfin'), h(<tr, sgS, sgV>))>) ]
+
+rule S_finish:
+  [ S1($S, $V, k, tr, sgS), !Pk($V, pkV),
+    In(<'VF', sgV, mac(kdf(k, 'vfin'), h(<tr, sgS, sgV>))>) ]
+  --[ Eq(verify(sgV, h(<tr, sgS>), pkV), true),
+      Commit_S($S, $V, k), SessKeyS($S, $V, k) ]->
+  [ ]
+
+restriction Equality:
+  "All x y #i. Eq(x, y) @i ==> x = y"
+
+restriction Neq:
+  "All x y #i. Neq(x, y) @i ==> not(x = y)"
+
+lemma handshake_executable:
+  exists-trace
+  "Ex V S k #i #j. Commit_V(V, S, k) @i & Commit_S(S, V, k) @j & not(Ex A #r. RevLtk(A) @r)"
+
+// session-key secrecy with perfect forward secrecy
+lemma session_key_secrecy_PFS_V:
+  "All V S k #i. SessKeyV(V, S, k) @i ==>
+     not(Ex #j. K(k) @j) | (Ex #r. RevLtk(S) @r & #r < #i)"
+
+lemma session_key_secrecy_PFS_S:
+  "All S V k #i. SessKeyS(S, V, k) @i ==>
+     not(Ex #j. K(k) @j) | (Ex #r. RevLtk(V) @r & #r < #i) | (Ex #r. RevLtk(S) @r & #r < #i)"
+
+// mutual injective agreement on the session key
+lemma vessel_authenticates_infrastructure:
+  "All V S k #i. Commit_V(V, S, k) @i ==>
+     (Ex #j. Running_S(S, V, k) @j & #j < #i
+        & not(Ex V2 S2 #i2. Commit_V(V2, S2, k) @i2 & not(#i2 = #i)))
+     | (Ex #r. RevLtk(S) @r & #r < #i)"
+
+lemma infrastructure_authenticates_vessel:
+  "All S V k #i. Commit_S(S, V, k) @i ==>
+     (Ex #j. Running_V(V, S, k) @j & #j < #i
+        & not(Ex S2 V2 #i2. Commit_S(S2, V2, k) @i2 & not(#i2 = #i)))
+     | (Ex #r. RevLtk(V) @r & #r < #i)"
+
+// SANITY CHECK (expected: falsified): without excluding prior compromise of S, the adversary
+// can impersonate S and learn the key. Shows the secrecy lemmas are not vacuous.
+lemma sanity_secrecy_without_compromise_assumption:
+  "All V S k #i. SessKeyV(V, S, k) @i ==> not(Ex #j. K(k) @j)"
+
+end

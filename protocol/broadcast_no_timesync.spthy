@@ -1,0 +1,76 @@
+theory SecureAIS_Broadcast_NoTimeSync
+begin
+
+/*
+  Secure-AIS B1: delayed-key-disclosure (TESLA-style) broadcast authentication of AIS
+  position reports over VHF, modelled for one epoch of one key chain.
+  - The vessel commits to h(K) in a chain commitment signed under its Maritime-PKI key
+    (Ed25519), distributed in a 4-slot Msg 8 (or via satellite/VDES).
+  - During epoch e it broadcasts position reports, each followed by a truncated tag
+    mac(K, <V, e, report>) in the epoch tag block.
+  - After the disclosure delay it releases K. Receivers accept a report only if it was
+    received before K was disclosed (loose time synchronisation; restriction below) and
+    h(K) matches the signed commitment.
+  The multi-epoch chain K_j = h(K_{j+1}) reduces to this case by one-wayness of h.
+*/
+
+builtins: signing, hashing
+functions: mac/2
+
+rule Register_pk:
+  [ Fr(~ltk) ] --[ Register($A) ]-> [ !Ltk($A, ~ltk), !Pk($A, pk(~ltk)), Out(pk(~ltk)) ]
+
+rule Reveal_ltk:
+  [ !Ltk($A, ltk) ] --[ RevLtk($A) ]-> [ Out(ltk) ]
+
+rule V_commit:
+  [ Fr(~K), Fr(~e), !Ltk($V, ~ltkV) ]
+  --[ Commit_Key($V, ~e, ~K) ]->
+  [ !VB($V, ~e, ~K), Out(<'COMMIT', $V, ~e, h(~K), sign(<'COMMIT', $V, ~e, h(~K)>, ~ltkV)>) ]
+
+rule V_broadcast:
+  [ !VB($V, e, K), Fr(~rep) ]
+  --[ Sent($V, e, ~rep) ]->
+  [ Out(<'POS', $V, e, ~rep, mac(K, <$V, e, ~rep>)>) ]
+
+rule V_disclose:
+  [ !VB($V, e, K) ] --[ Disclose($V, e) ]-> [ Out(<'KEY', $V, e, K>) ]
+
+rule R_receive:
+  [ !Pk($V, pkV), In(<'COMMIT', $V, e, c, sg>),
+    In(<'POS', $V, e, rep, t>), Fr(~rid) ]
+  --[ Eq(verify(sg, <'COMMIT', $V, e, c>, pkV), true), Received(~rid, $V, e, rep) ]->
+  [ R1(~rid, $V, e, c, rep, t) ]
+
+rule R_accept:
+  [ R1(rid, $V, e, c, rep, t), In(<'KEY', $V, e, K>) ]
+  --[ Eq(c, h(K)), Eq(t, mac(K, <$V, e, rep>)), Accept(rid, $V, e, rep) ]->
+  [ ]
+
+restriction Equality:
+  "All x y #i. Eq(x, y) @i ==> x = y"
+
+// TESLA security condition enforced by loose time synchronisation:
+// a report is buffered only if it arrived before the key could have been disclosed
+// time-synchronisation restriction REMOVED in this variant (expected: authenticity falsified)
+
+lemma broadcast_executable:
+  exists-trace
+  "Ex rid V e rep #i. Accept(rid, V, e, rep) @i & not(Ex A #r. RevLtk(A) @r)"
+
+// the epoch key stays secret until it is disclosed (unless the signing key is compromised,
+// in which case the adversary can issue its own commitment, but still cannot learn K)
+lemma epoch_key_secret_until_disclosure [reuse]:
+  "All V e K #i #j. Commit_Key(V, e, K) @i & K(K) @j ==> (Ex #d. Disclose(V, e) @d & #d < #j)"
+
+// broadcast authenticity: an accepted report was sent by the claimed vessel in that epoch
+lemma broadcast_authenticity:
+  "All rid V e rep #i. Accept(rid, V, e, rep) @i ==>
+     (Ex #j. Sent(V, e, rep) @j & #j < #i) | (Ex #r. RevLtk(V) @r)"
+
+// SANITY CHECK (expected: falsified): if the vessel signing key may be compromised,
+// an adversary can issue its own commitment and have forged reports accepted.
+lemma sanity_authenticity_needs_uncompromised_key:
+  "All rid V e rep #i. Accept(rid, V, e, rep) @i ==> (Ex #j. Sent(V, e, rep) @j)"
+
+end

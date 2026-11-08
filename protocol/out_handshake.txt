@@ -1,0 +1,787 @@
+maude tool: '/tmp/maude/x/maude'
+ checking version: 3.5. OK.
+ checking installation: OK.
+[Theory SecureAIS_Handshake] Theory loaded
+[Theory SecureAIS_Handshake] Theory translated
+[Theory SecureAIS_Handshake] Derivation checks started
+[Theory SecureAIS_Handshake] Derivation checks ended
+[Theory SecureAIS_Handshake] Theory closed
+[Saturating Sources] Step 1 (Max 5)
+[Saturating Sources] Done
+theory SecureAIS_Handshake begin
+
+// Function signature and definition of the equational theory E
+
+builtins: diffie-hellman
+functions: fst/1, h/1, kdf/2, mac/2, pair/2, pk/1, sign/2, snd/1, true/0,
+           verify/3
+equations:
+    fst(<x.1, x.2>) = x.1,
+    snd(<x.1, x.2>) = x.2,
+    verify(sign(x.1, x.2), x.1, pk(x.2)) = true
+
+
+
+
+
+
+
+
+
+
+
+rule (modulo E) Register_pk:
+   [ Fr( ~ltk ) ]
+  --[ Register( $A ) ]->
+   [ !Ltk( $A, ~ltk ), !Pk( $A, pk(~ltk) ), Out( pk(~ltk) ) ]
+
+  /* has exactly the trivial AC variant */
+
+rule (modulo E) Reveal_ltk:
+   [ !Ltk( $A, ltk ) ] --[ RevLtk( $A ) ]-> [ Out( ltk ) ]
+
+  /* has exactly the trivial AC variant */
+
+rule (modulo E) V_hello:
+   [ Fr( ~x ), Fr( ~nv ), !Ltk( $V, ltkV ) ]
+  --[ Start( $V, $S ) ]->
+   [ V1( $V, $S, ~x, ~nv ), Out( <'CH', $V, $S, ~nv, 'g'^~x> ) ]
+
+  /* has exactly the trivial AC variant */
+
+rule (modulo E) S_hello:
+   [ In( <'CH', $V, $S, nv, gx> ), Fr( ~y ), Fr( ~ns ), !Ltk( $S, ~ltkS ) ]
+  --[
+  Running_S( $S, $V, kdf(gx^~y, <'CH', $V, $S, nv, gx, 'SH', ~ns, 'g'^~y>)
+  ),
+  Neq( gx, 'g' )
+  ]->
+   [
+   S1( $S, $V, kdf(gx^~y, <'CH', $V, $S, nv, gx, 'SH', ~ns, 'g'^~y>),
+       <'CH', $V, $S, nv, gx, 'SH', ~ns, 'g'^~y>,
+       sign(h(<'CH', $V, $S, nv, gx, 'SH', ~ns, 'g'^~y>), ~ltkS)
+   ),
+   Out( <'SH', ~ns, 'g'^~y, 
+         sign(h(<'CH', $V, $S, nv, gx, 'SH', ~ns, 'g'^~y>), ~ltkS), 
+         mac(kdf(kdf(gx^~y, <'CH', $V, $S, nv, gx, 'SH', ~ns, 'g'^~y>), 'sfin'),
+             h(<<'CH', $V, $S, nv, gx, 'SH', ~ns, 'g'^~y>, 
+                sign(h(<'CH', $V, $S, nv, gx, 'SH', ~ns, 'g'^~y>), ~ltkS)>))
+        >
+   )
+   ]
+
+  /*
+  rule (modulo AC) S_hello:
+     [ In( <'CH', $V, $S, nv, gx> ), Fr( ~y ), Fr( ~ns ), !Ltk( $S, ~ltkS ) ]
+    --[
+    Running_S( $S, $V, kdf(z, <'CH', $V, $S, nv, gx, 'SH', ~ns, 'g'^~y>) ),
+    Neq( gx, 'g' )
+    ]->
+     [
+     S1( $S, $V, kdf(z, <'CH', $V, $S, nv, gx, 'SH', ~ns, 'g'^~y>),
+         <'CH', $V, $S, nv, gx, 'SH', ~ns, 'g'^~y>,
+         sign(h(<'CH', $V, $S, nv, gx, 'SH', ~ns, 'g'^~y>), ~ltkS)
+     ),
+     Out( <'SH', ~ns, 'g'^~y, 
+           sign(h(<'CH', $V, $S, nv, gx, 'SH', ~ns, 'g'^~y>), ~ltkS), 
+           mac(kdf(kdf(z, <'CH', $V, $S, nv, gx, 'SH', ~ns, 'g'^~y>), 'sfin'),
+               h(<<'CH', $V, $S, nv, gx, 'SH', ~ns, 'g'^~y>, 
+                  sign(h(<'CH', $V, $S, nv, gx, 'SH', ~ns, 'g'^~y>), ~ltkS)>))
+          >
+     )
+     ]
+    variants (modulo AC)
+    1. ~y    = ~y.12
+       gx    = gx.13
+       z     = gx.13^~y.12
+    
+    2. ~y    = ~y.15
+       gx    = z.19^inv(~y.15)
+       z     = z.19
+    
+    3. ~y    = ~y.87
+       gx    = x.167^x.168
+       z     = x.167^(~y.87*x.168)
+    
+    4. ~y    = ~y.88
+       gx    = x.169^inv((~y.88*x.170))
+       z     = x.169^inv(x.170)
+    
+    5. ~y    = ~y.88
+       gx    = x.169^(x.170*inv(~y.88))
+       z     = x.169^x.170
+    
+    6. ~y    = ~y.89
+       gx    = x.170^(x.171*inv((~y.89*x.172)))
+       z     = x.170^(x.171*inv(x.172))
+    
+    7. gx    = DH_neutral
+       z     = DH_neutral
+  */
+
+rule (modulo E) V_finish:
+   [
+   V1( $V, $S, ~x, ~nv ), !Pk( $S, pkS ), !Ltk( $V, ~ltkV ),
+   In( <'SH', ns, gy, sgS, 
+        mac(kdf(kdf(gy^~x, <'CH', $V, $S, ~nv, 'g'^~x, 'SH', ns, gy>), 'sfin'),
+            h(<<'CH', $V, $S, ~nv, 'g'^~x, 'SH', ns, gy>, sgS>))
+       >
+   )
+   ]
+  --[
+  Eq( verify(sgS, h(<'CH', $V, $S, ~nv, 'g'^~x, 'SH', ns, gy>), pkS), true
+  ),
+  Commit_V( $V, $S, kdf(gy^~x, <'CH', $V, $S, ~nv, 'g'^~x, 'SH', ns, gy>)
+  ),
+  Running_V( $V, $S, kdf(gy^~x, <'CH', $V, $S, ~nv, 'g'^~x, 'SH', ns, gy>)
+  ),
+  SessKeyV( $V, $S, kdf(gy^~x, <'CH', $V, $S, ~nv, 'g'^~x, 'SH', ns, gy>) )
+  ]->
+   [
+   Out( <'VF', 
+         sign(h(<<'CH', $V, $S, ~nv, 'g'^~x, 'SH', ns, gy>, sgS>), ~ltkV), 
+         mac(kdf(kdf(gy^~x, <'CH', $V, $S, ~nv, 'g'^~x, 'SH', ns, gy>), 'vfin'),
+             h(<<'CH', $V, $S, ~nv, 'g'^~x, 'SH', ns, gy>, sgS, 
+                sign(h(<<'CH', $V, $S, ~nv, 'g'^~x, 'SH', ns, gy>, sgS>), ~ltkV)>))
+        >
+   )
+   ]
+
+  /*
+  rule (modulo AC) V_finish:
+     [
+     V1( $V, $S, ~x, ~nv ), !Pk( $S, pkS ), !Ltk( $V, ~ltkV ),
+     In( <'SH', ns, gy, sgS, 
+          mac(kdf(kdf(z, <'CH', $V, $S, ~nv, 'g'^~x, 'SH', ns, gy>), 'sfin'),
+              h(<<'CH', $V, $S, ~nv, 'g'^~x, 'SH', ns, gy>, sgS>))
+         >
+     )
+     ]
+    --[
+    Eq( z.1, true ),
+    Commit_V( $V, $S, kdf(z, <'CH', $V, $S, ~nv, 'g'^~x, 'SH', ns, gy>) ),
+    Running_V( $V, $S, kdf(z, <'CH', $V, $S, ~nv, 'g'^~x, 'SH', ns, gy>) ),
+    SessKeyV( $V, $S, kdf(z, <'CH', $V, $S, ~nv, 'g'^~x, 'SH', ns, gy>) )
+    ]->
+     [
+     Out( <'VF', 
+           sign(h(<<'CH', $V, $S, ~nv, 'g'^~x, 'SH', ns, gy>, sgS>), ~ltkV), 
+           mac(kdf(kdf(z, <'CH', $V, $S, ~nv, 'g'^~x, 'SH', ns, gy>), 'vfin'),
+               h(<<'CH', $V, $S, ~nv, 'g'^~x, 'SH', ns, gy>, sgS, 
+                  sign(h(<<'CH', $V, $S, ~nv, 'g'^~x, 'SH', ns, gy>, sgS>), ~ltkV)>))
+          >
+     )
+     ]
+    variants (modulo AC)
+     1. $S    = $S.27
+        $V    = $V.28
+        ~nv   = ~nv.30
+        ~x    = ~x.31
+        gy    = gy.32
+        ns    = ns.33
+        pkS   = pkS.34
+        sgS   = sgS.35
+        z     = gy.32^~x.31
+        z.1   = verify(sgS.35,
+                       h(<'CH', $V.28, $S.27, ~nv.30, 'g'^~x.31, 'SH', ns.33, gy.32>), pkS.34)
+    
+     2. $S    = $S.27
+        $V    = $V.28
+        ~nv   = ~nv.30
+        ~x    = ~x.31
+        gy    = DH_neutral
+        ns    = ns.33
+        pkS   = pkS.34
+        sgS   = sgS.35
+        z     = DH_neutral
+        z.1   = verify(sgS.35,
+                       h(<'CH', $V.28, $S.27, ~nv.30, 'g'^~x.31, 'SH', ns.33, DH_neutral>),
+                       pkS.34)
+    
+     3. $S    = $S.29
+        $V    = $V.30
+        ~nv   = ~nv.32
+        ~x    = ~x.33
+        gy    = z.39^inv(~x.33)
+        ns    = ns.35
+        pkS   = pkS.36
+        sgS   = sgS.37
+        z     = z.39
+        z.1   = verify(sgS.37,
+                       h(<'CH', $V.30, $S.29, ~nv.32, 'g'^~x.33, 'SH', ns.35, z.39^inv(~x.33)>),
+                       pkS.36)
+    
+     4. $S    = $S.170
+        $V    = $V.171
+        ~nv   = ~nv.173
+        ~x    = ~x.174
+        gy    = x.337^x.338
+        ns    = ns.176
+        pkS   = pkS.177
+        sgS   = sgS.178
+        z     = x.337^(~x.174*x.338)
+        z.1   = verify(sgS.178,
+                       h(<'CH', $V.171, $S.170, ~nv.173, 'g'^~x.174, 'SH', ns.176, x.337^x.338
+                         >),
+                       pkS.177)
+    
+     5. $S    = $S.171
+        $V    = $V.172
+        ~nv   = ~nv.174
+        ~x    = ~x.175
+        gy    = x.339^inv((~x.175*x.340))
+        ns    = ns.177
+        pkS   = pkS.178
+        sgS   = sgS.179
+        z     = x.339^inv(x.340)
+        z.1   = verify(sgS.179,
+                       h(<'CH', $V.172, $S.171, ~nv.174, 'g'^~x.175, 'SH', ns.177, 
+                          x.339^inv((~x.175*x.340))>),
+                       pkS.178)
+    
+     6. $S    = $S.171
+        $V    = $V.172
+        ~nv   = ~nv.174
+        ~x    = ~x.175
+        gy    = x.339^(x.340*inv(~x.175))
+        ns    = ns.177
+        pkS   = pkS.178
+        sgS   = sgS.179
+        z     = x.339^x.340
+        z.1   = verify(sgS.179,
+                       h(<'CH', $V.172, $S.171, ~nv.174, 'g'^~x.175, 'SH', ns.177, 
+                          x.339^(x.340*inv(~x.175))>),
+                       pkS.178)
+    
+     7. $S    = $S.172
+        $V    = $V.173
+        ~nv   = ~nv.175
+        ~x    = ~x.176
+        gy    = x.340^(x.341*inv((~x.176*x.342)))
+        ns    = ns.178
+        pkS   = pkS.179
+        sgS   = sgS.180
+        z     = x.340^(x.341*inv(x.342))
+        z.1   = verify(sgS.180,
+                       h(<'CH', $V.173, $S.172, ~nv.175, 'g'^~x.176, 'SH', ns.178, 
+                          x.340^(x.341*inv((~x.176*x.342)))>),
+                       pkS.179)
+    
+     8. $S    = $S.175
+        $V    = $V.176
+        ~nv   = ~nv.178
+        ~x    = ~x.179
+        gy    = DH_neutral
+        ns    = ns.181
+        pkS   = pk(x.348)
+        sgS   = sign(h(<'CH', $V.176, $S.175, ~nv.178, 'g'^~x.179, 'SH', ns.181, 
+                        DH_neutral>),
+                     x.348)
+        z     = DH_neutral
+        z.1   = true
+    
+     9. $S    = $S.176
+        $V    = $V.177
+        ~nv   = ~nv.179
+        ~x    = ~x.180
+        gy    = gy.181
+        ns    = ns.182
+        pkS   = pk(x.350)
+        sgS   = sign(h(<'CH', $V.177, $S.176, ~nv.179, 'g'^~x.180, 'SH', ns.182, 
+                        gy.181>),
+                     x.350)
+        z     = gy.181^~x.180
+        z.1   = true
+    
+    10. $S    = $S.176
+        $V    = $V.177
+        ~nv   = ~nv.179
+        ~x    = ~x.180
+        gy    = z.186^inv(~x.180)
+        ns    = ns.182
+        pkS   = pk(x.350)
+        sgS   = sign(h(<'CH', $V.177, $S.176, ~nv.179, 'g'^~x.180, 'SH', ns.182, 
+                        z.186^inv(~x.180)>),
+                     x.350)
+        z     = z.186
+        z.1   = true
+    
+    11. $S    = $S.177
+        $V    = $V.178
+        ~nv   = ~nv.180
+        ~x    = ~x.181
+        gy    = x.349^x.350
+        ns    = ns.183
+        pkS   = pk(x.352)
+        sgS   = sign(h(<'CH', $V.178, $S.177, ~nv.180, 'g'^~x.181, 'SH', ns.183, 
+                        x.349^x.350>),
+                     x.352)
+        z     = x.349^(~x.181*x.350)
+        z.1   = true
+    
+    12. $S    = $S.177
+        $V    = $V.178
+        ~nv   = ~nv.180
+        ~x    = ~x.181
+        gy    = x.349^inv((~x.181*x.350))
+        ns    = ns.183
+        pkS   = pk(x.352)
+        sgS   = sign(h(<'CH', $V.178, $S.177, ~nv.180, 'g'^~x.181, 'SH', ns.183, 
+                        x.349^inv((~x.181*x.350))>),
+                     x.352)
+        z     = x.349^inv(x.350)
+        z.1   = true
+    
+    13. $S    = $S.177
+        $V    = $V.178
+        ~nv   = ~nv.180
+        ~x    = ~x.181
+        gy    = x.349^(x.350*inv(~x.181))
+        ns    = ns.183
+        pkS   = pk(x.352)
+        sgS   = sign(h(<'CH', $V.178, $S.177, ~nv.180, 'g'^~x.181, 'SH', ns.183, 
+                        x.349^(x.350*inv(~x.181))>),
+                     x.352)
+        z     = x.349^x.350
+        z.1   = true
+    
+    14. $S    = $S.178
+        $V    = $V.179
+        ~nv   = ~nv.181
+        ~x    = ~x.182
+        gy    = x.350^(x.351*inv((~x.182*x.352)))
+        ns    = ns.184
+        pkS   = pk(x.354)
+        sgS   = sign(h(<'CH', $V.179, $S.178, ~nv.181, 'g'^~x.182, 'SH', ns.184, 
+                        x.350^(x.351*inv((~x.182*x.352)))>),
+                     x.354)
+        z     = x.350^(x.351*inv(x.352))
+        z.1   = true
+  */
+
+rule (modulo E) S_finish:
+   [
+   S1( $S, $V, k, tr, sgS ), !Pk( $V, pkV ),
+   In( <'VF', sgV, mac(kdf(k, 'vfin'), h(<tr, sgS, sgV>))> )
+   ]
+  --[
+  Eq( verify(sgV, h(<tr, sgS>), pkV), true ), Commit_S( $S, $V, k ),
+  SessKeyS( $S, $V, k )
+  ]->
+   [ ]
+
+  /*
+  rule (modulo AC) S_finish:
+     [
+     S1( $S, $V, k, tr, sgS ), !Pk( $V, pkV ),
+     In( <'VF', sgV, mac(kdf(k, 'vfin'), h(<tr, sgS, sgV>))> )
+     ]
+    --[ Eq( z, true ), Commit_S( $S, $V, k ), SessKeyS( $S, $V, k ) ]->
+     [ ]
+    variants (modulo AC)
+    1. pkV   = pkV.15
+       sgS   = sgS.16
+       sgV   = sgV.17
+       tr    = tr.18
+       z     = verify(sgV.17, h(<tr.18, sgS.16>), pkV.15)
+    
+    2. pkV   = pk(x.30)
+       sgS   = sgS.18
+       sgV   = sign(h(<tr.20, sgS.18>), x.30)
+       tr    = tr.20
+       z     = true
+  */
+
+restriction Equality:
+  "∀ x y #i. (Eq( x, y ) @ #i) ⇒ (x = y)"
+  // safety formula
+
+restriction Neq:
+  "∀ x y #i. (Neq( x, y ) @ #i) ⇒ (¬(x = y))"
+  // safety formula
+
+lemma handshake_executable:
+  exists-trace
+  "∃ V S k #i #j.
+    ((Commit_V( V, S, k ) @ #i) ∧ (Commit_S( S, V, k ) @ #j)) ∧
+    (¬(∃ A #r. RevLtk( A ) @ #r))"
+/*
+guarded formula characterizing all satisfying traces:
+"∃ V S k #i #j.
+  (Commit_V( V, S, k ) @ #i) ∧ (Commit_S( S, V, k ) @ #j)
+ ∧
+  ∀ A #r. (RevLtk( A ) @ #r) ⇒ ⊥"
+*/
+simplify
+solve( V1( $V, $S, ~x, ~nv ) ▶₀ #i )
+  case V_hello
+  solve( !Pk( $S, pk(x.1) ) ▶₁ #i )
+    case Register_pk
+    solve( !Ltk( $V, ~ltkV ) ▶₂ #i )
+      case Register_pk
+      solve( S1( $S, $V, kdf(z, <'CH', $V, $S, ~nv, 'g'^~x, 'SH', ns, gy>), tr,
+                 sgS
+             ) ▶₀ #j )
+        case S_hello
+        solve( !Pk( $V, pk(x.1) ) ▶₁ #j )
+          case Register_pk
+          solve( !KU( sign(h(<'CH', $V, $S, ~nv, 'g'^~x, 'SH', ~ns, 'g'^~y>), ~ltk)
+                 ) @ #vk.7 )
+            case S_hello
+            solve( !KU( sign(h(<<'CH', $V, $S, ~nv, 'g'^~x, 'SH', ~ns, 'g'^~y>, 
+                                sign(h(<'CH', $V, $S, ~nv, 'g'^~x, 'SH', ~ns, 'g'^~y>), ~ltk)>),
+                             ~ltk.1)
+                   ) @ #vk.12 )
+              case V_finish
+              solve( !KU( ~nv ) @ #vk.21 )
+                case V_hello
+                solve( !KU( ~ns ) @ #vk.10 )
+                  case S_hello
+                  solve( !KU( mac(kdf(kdf('g'^(~x*~y),
+                                          <'CH', $V, $S, ~nv, 'g'^~x, 'SH', ~ns, 'g'^~y>),
+                                      'sfin'),
+                                  h(<<'CH', $V, $S, ~nv, 'g'^~x, 'SH', ~ns, 'g'^~y>, 
+                                     sign(h(<'CH', $V, $S, ~nv, 'g'^~x, 'SH', ~ns, 'g'^~y>), ~ltk)>))
+                         ) @ #vk.15 )
+                    case S_hello
+                    solve( !KU( mac(kdf(kdf('g'^(~x*~y),
+                                            <'CH', $V, $S, ~nv, 'g'^~x, 'SH', ~ns, 'g'^~y>),
+                                        'vfin'),
+                                    h(<<'CH', $V, $S, ~nv, 'g'^~x, 'SH', ~ns, 'g'^~y>, 
+                                       sign(h(<'CH', $V, $S, ~nv, 'g'^~x, 'SH', ~ns, 'g'^~y>), ~ltk), 
+                                       sign(h(<<'CH', $V, $S, ~nv, 'g'^~x, 'SH', ~ns, 'g'^~y>, 
+                                               sign(h(<'CH', $V, $S, ~nv, 'g'^~x, 'SH', ~ns, 'g'^~y>), ~ltk)
+                                              >),
+                                            ~ltkV)
+                                      >))
+                           ) @ #vk.18 )
+                      case V_finish
+                      solve( !KU( 'g'^~x ) @ #vk.22 )
+                        case V_hello
+                        solve( !KU( 'g'^~y ) @ #vk.18 )
+                          case S_hello
+                          SOLVED // trace found
+                        qed
+                      qed
+                    qed
+                  qed
+                qed
+              qed
+            qed
+          qed
+        qed
+      qed
+    qed
+  qed
+qed
+
+lemma session_key_secrecy_PFS_V:
+  all-traces
+  "∀ V S k #i.
+    (SessKeyV( V, S, k ) @ #i) ⇒
+    ((¬(∃ #j. K( k ) @ #j)) ∨ (∃ #r. (RevLtk( S ) @ #r) ∧ (#r < #i)))"
+/*
+guarded formula characterizing all counter-examples:
+"∃ V S k #i.
+  (SessKeyV( V, S, k ) @ #i)
+ ∧
+  (∃ #j. (K( k ) @ #j)) ∧ (∀ #r. (RevLtk( S ) @ #r) ⇒ ¬(#r < #i))"
+*/
+simplify
+solve( V1( $V, $S, ~x, ~nv ) ▶₀ #i )
+  case V_hello
+  solve( !Pk( $S, pk(x.1) ) ▶₁ #i )
+    case Register_pk
+    solve( !Ltk( $V, ~ltkV ) ▶₂ #i )
+      case Register_pk
+      solve( !KU( kdf(z, <'CH', $V, $S, ~nv, 'g'^~x, 'SH', ns, gy>) ) @ #vk.9 )
+        case c_kdf
+        solve( !KU( sign(h(<'CH', $V, $S, ~nv, 'g'^~x, 'SH', ns, gy>), ~ltk)
+               ) @ #vk.10 )
+          case S_hello
+          solve( !KU( 'g'^(~x*~y) ) @ #vk.13 )
+            case S_hello
+            by solve( !KU( ~x ) @ #vk.27 )
+          next
+            case V_hello
+            by solve( !KU( ~y ) @ #vk.27 )
+          next
+            case c_exp
+            by solve( !KU( ~x ) @ #vk.29 )
+          qed
+        next
+          case c_sign
+          solve( !KU( ~ltk ) @ #vk.24 )
+            case Reveal_ltk
+            by contradiction /* from formulas */
+          qed
+        qed
+      qed
+    qed
+  qed
+qed
+
+lemma session_key_secrecy_PFS_S:
+  all-traces
+  "∀ S V k #i.
+    (SessKeyS( S, V, k ) @ #i) ⇒
+    (((¬(∃ #j. K( k ) @ #j)) ∨ (∃ #r. (RevLtk( V ) @ #r) ∧ (#r < #i))) ∨
+     (∃ #r. (RevLtk( S ) @ #r) ∧ (#r < #i)))"
+/*
+guarded formula characterizing all counter-examples:
+"∃ S V k #i.
+  (SessKeyS( S, V, k ) @ #i)
+ ∧
+  (∃ #j. (K( k ) @ #j)) ∧
+  (∀ #r. (RevLtk( V ) @ #r) ⇒ ¬(#r < #i)) ∧
+  (∀ #r. (RevLtk( S ) @ #r) ⇒ ¬(#r < #i))"
+*/
+simplify
+solve( S1( $S, $V, k, tr, sgS ) ▶₀ #i )
+  case S_hello
+  solve( !Pk( $V, pk(x) ) ▶₁ #i )
+    case Register_pk
+    solve( !KU( kdf(z, <'CH', $V, $S, nv, gx, 'SH', ~ns, 'g'^~y>) ) @ #vk.5 )
+      case c_kdf
+      solve( !KU( sign(h(<<'CH', $V, $S, nv, gx, 'SH', ~ns, 'g'^~y>, 
+                          sign(h(<'CH', $V, $S, nv, gx, 'SH', ~ns, 'g'^~y>), ~ltkS)>),
+                       ~ltk)
+             ) @ #vk.4 )
+        case V_finish
+        solve( !KU( 'g'^(~x*~y) ) @ #vk.20 )
+          case S_hello
+          by solve( !KU( ~x ) @ #vk.32 )
+        next
+          case V_hello
+          by solve( !KU( ~y ) @ #vk.32 )
+        next
+          case c_exp
+          by solve( !KU( ~x ) @ #vk.34 )
+        qed
+      next
+        case c_sign
+        solve( !KU( ~ltk ) @ #vk.27 )
+          case Reveal_ltk
+          by contradiction /* from formulas */
+        qed
+      qed
+    qed
+  qed
+qed
+
+lemma vessel_authenticates_infrastructure:
+  all-traces
+  "∀ V S k #i.
+    (Commit_V( V, S, k ) @ #i) ⇒
+    ((∃ #j.
+       ((Running_S( S, V, k ) @ #j) ∧ (#j < #i)) ∧
+       (¬(∃ V2 S2 #i2. (Commit_V( V2, S2, k ) @ #i2) ∧ (¬(#i2 = #i))))) ∨
+     (∃ #r. (RevLtk( S ) @ #r) ∧ (#r < #i)))"
+/*
+guarded formula characterizing all counter-examples:
+"∃ V S k #i.
+  (Commit_V( V, S, k ) @ #i)
+ ∧
+  (∀ #j.
+    (Running_S( S, V, k ) @ #j)
+   ⇒
+    ((¬(#j < #i)) ∨
+     (∃ V2 S2 #i2. (Commit_V( V2, S2, k ) @ #i2) ∧ ¬(#i2 = #i)))) ∧
+  (∀ #r. (RevLtk( S ) @ #r) ⇒ ¬(#r < #i))"
+*/
+simplify
+solve( V1( $V, $S, ~x, ~nv ) ▶₀ #i )
+  case V_hello
+  solve( !Pk( $S, pk(x.1) ) ▶₁ #i )
+    case Register_pk
+    solve( !Ltk( $V, ~ltkV ) ▶₂ #i )
+      case Register_pk
+      solve( !KU( sign(h(<'CH', $V, $S, ~nv, 'g'^~x, 'SH', ns, gy>), ~ltk)
+             ) @ #vk.7 )
+        case S_hello
+        solve( (#i2 < #i)  ∥ (#i < #i2) )
+          case case_1
+          solve( V1( $V, $S, ~x, ~nv ) ▶₀ #i2 )
+            case V_hello
+            by contradiction /* cyclic */
+          qed
+        next
+          case case_2
+          solve( V1( $V, $S, ~x, ~nv ) ▶₀ #i2 )
+            case V_hello
+            by contradiction /* cyclic */
+          qed
+        qed
+      next
+        case c_sign
+        solve( !KU( ~ltk ) @ #vk.10 )
+          case Reveal_ltk
+          by contradiction /* from formulas */
+        qed
+      qed
+    qed
+  qed
+qed
+
+lemma infrastructure_authenticates_vessel:
+  all-traces
+  "∀ S V k #i.
+    (Commit_S( S, V, k ) @ #i) ⇒
+    ((∃ #j.
+       ((Running_V( V, S, k ) @ #j) ∧ (#j < #i)) ∧
+       (¬(∃ S2 V2 #i2. (Commit_S( S2, V2, k ) @ #i2) ∧ (¬(#i2 = #i))))) ∨
+     (∃ #r. (RevLtk( V ) @ #r) ∧ (#r < #i)))"
+/*
+guarded formula characterizing all counter-examples:
+"∃ S V k #i.
+  (Commit_S( S, V, k ) @ #i)
+ ∧
+  (∀ #j.
+    (Running_V( V, S, k ) @ #j)
+   ⇒
+    ((¬(#j < #i)) ∨
+     (∃ S2 V2 #i2. (Commit_S( S2, V2, k ) @ #i2) ∧ ¬(#i2 = #i)))) ∧
+  (∀ #r. (RevLtk( V ) @ #r) ⇒ ¬(#r < #i))"
+*/
+simplify
+solve( S1( $S, $V, k, tr, sgS ) ▶₀ #i )
+  case S_hello
+  solve( !Pk( $V, pk(x) ) ▶₁ #i )
+    case Register_pk
+    solve( !KU( sign(h(<<'CH', $V, $S, nv, gx, 'SH', ~ns, 'g'^~y>, 
+                        sign(h(<'CH', $V, $S, nv, gx, 'SH', ~ns, 'g'^~y>), ~ltkS)>),
+                     ~ltk)
+           ) @ #vk.3 )
+      case V_finish
+      solve( (#i2 < #i)  ∥ (#i < #i2) )
+        case case_1
+        solve( S1( $S.1, $V.1,
+                   kdf('g'^(~x*~y), <'CH', $V, $S, ~nv, 'g'^~x, 'SH', ~ns, 'g'^~y>), tr, sgS
+               ) ▶₀ #i2 )
+          case S_hello
+          by contradiction /* cyclic */
+        qed
+      next
+        case case_2
+        solve( S1( $S.1, $V.1,
+                   kdf('g'^(~x*~y), <'CH', $V, $S, ~nv, 'g'^~x, 'SH', ~ns, 'g'^~y>), tr, sgS
+               ) ▶₀ #i2 )
+          case S_hello
+          by contradiction /* cyclic */
+        qed
+      qed
+    next
+      case c_sign
+      solve( !KU( ~ltk ) @ #vk.15 )
+        case Reveal_ltk
+        by contradiction /* from formulas */
+      qed
+    qed
+  qed
+qed
+
+lemma sanity_secrecy_without_compromise_assumption:
+  all-traces
+  "∀ V S k #i. (SessKeyV( V, S, k ) @ #i) ⇒ (¬(∃ #j. K( k ) @ #j))"
+/*
+guarded formula characterizing all counter-examples:
+"∃ V S k #i. (SessKeyV( V, S, k ) @ #i) ∧ ∃ #j. (K( k ) @ #j)"
+*/
+simplify
+solve( V1( $V, $S, ~x, ~nv ) ▶₀ #i )
+  case V_hello
+  solve( !Pk( $S, pk(x.1) ) ▶₁ #i )
+    case Register_pk
+    solve( !Ltk( $V, ~ltkV ) ▶₂ #i )
+      case Register_pk
+      solve( !KU( kdf(z, <'CH', $V, $S, ~nv, 'g'^~x, 'SH', ns, gy>) ) @ #vk.9 )
+        case c_kdf
+        solve( !KU( sign(h(<'CH', $V, $S, ~nv, 'g'^~x, 'SH', ns, gy>), ~ltk)
+               ) @ #vk.10 )
+          case c_sign
+          solve( !KU( ~ltk ) @ #vk.24 )
+            case Reveal_ltk
+            solve( !KU( h(<'CH', $V, $S, ~nv, 'g'^~x, 'SH', ns, gy>) ) @ #vk.24 )
+              case c_h
+              solve( !KU( mac(kdf(kdf(z, <'CH', $V, $S, ~nv, 'g'^~x, 'SH', ns, gy>),
+                                  'sfin'),
+                              h(<<'CH', $V, $S, ~nv, 'g'^~x, 'SH', ns, gy>, 
+                                 sign(h(<'CH', $V, $S, ~nv, 'g'^~x, 'SH', ns, gy>), ~ltk)>))
+                     ) @ #vk.16 )
+                case c_mac
+                solve( !KU( kdf(kdf(z, <'CH', $V, $S, ~nv, 'g'^~x, 'SH', ns, gy>),
+                                'sfin')
+                       ) @ #vk.25 )
+                  case c_kdf
+                  solve( !KU( h(<<'CH', $V, $S, ~nv, 'g'^~x, 'SH', ns, gy>, 
+                                 sign(h(<'CH', $V, $S, ~nv, 'g'^~x, 'SH', ns, gy>), ~ltk)>)
+                         ) @ #vk.26 )
+                    case c_h
+                    solve( splitEqs(0) )
+                      case split_case_1
+                      solve( !KU( gy^~x ) @ #vk.22 )
+                        case V_hello
+                        solve( !KU( ~nv ) @ #vk.26 )
+                          case V_hello
+                          SOLVED // trace found
+                        qed
+                      qed
+                    qed
+                  qed
+                qed
+              qed
+            qed
+          qed
+        qed
+      qed
+    qed
+  qed
+qed
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* All wellformedness checks were successful. */
+
+/*
+Generated from:
+Tamarin version 1.10.0
+Maude version 3.5
+Git revision: cb62c305f8c8b8c1e664152aa33c95b7b8d5ef32, branch: master
+Compiled at: 2024-10-30 11:11:02.432289291 UTC
+*/
+
+end
+
+==============================================================================
+summary of summaries:
+
+analyzed: handshake.spthy
+
+  processing time: 4.99s
+  
+  handshake_executable (exists-trace): verified (15 steps)
+  session_key_secrecy_PFS_V (all-traces): verified (12 steps)
+  session_key_secrecy_PFS_S (all-traces): verified (11 steps)
+  vessel_authenticates_infrastructure (all-traces): verified (12 steps)
+  infrastructure_authenticates_vessel (all-traces): verified (11 steps)
+  sanity_secrecy_without_compromise_assumption (all-traces): falsified - found trace (15 steps)
+
+==============================================================================

@@ -1,0 +1,6 @@
+{
+ "land_cdf_one_point": 0.9875767823866382,
+ "land_cdf_all_land": 0.9997929463731107,
+ "rule_threshold": 0.9981089102077438,
+ "real_train_land_frac": 0.012423217613361862
+}

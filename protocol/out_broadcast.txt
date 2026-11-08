@@ -1,0 +1,284 @@
+maude tool: '/tmp/maude/x/maude'
+ checking version: 3.5. OK.
+ checking installation: OK.
+[Theory SecureAIS_Broadcast] Theory loaded
+[Theory SecureAIS_Broadcast] Theory translated
+[Theory SecureAIS_Broadcast] Derivation checks started
+[Theory SecureAIS_Broadcast] Derivation checks ended
+[Theory SecureAIS_Broadcast] Theory closed
+[Saturating Sources] Step 1 (Max 5)
+[Saturating Sources] Done
+theory SecureAIS_Broadcast begin
+
+// Function signature and definition of the equational theory E
+
+functions: fst/1, h/1, mac/2, pair/2, pk/1, sign/2, snd/1, true/0,
+           verify/3
+equations:
+    fst(<x.1, x.2>) = x.1,
+    snd(<x.1, x.2>) = x.2,
+    verify(sign(x.1, x.2), x.1, pk(x.2)) = true
+
+
+
+
+
+
+
+
+
+rule (modulo E) Register_pk:
+   [ Fr( ~ltk ) ]
+  --[ Register( $A ) ]->
+   [ !Ltk( $A, ~ltk ), !Pk( $A, pk(~ltk) ), Out( pk(~ltk) ) ]
+
+  /* has exactly the trivial AC variant */
+
+rule (modulo E) Reveal_ltk:
+   [ !Ltk( $A, ltk ) ] --[ RevLtk( $A ) ]-> [ Out( ltk ) ]
+
+  /* has exactly the trivial AC variant */
+
+rule (modulo E) V_commit:
+   [ Fr( ~K ), Fr( ~e ), !Ltk( $V, ~ltkV ) ]
+  --[ Commit_Key( $V, ~e, ~K ) ]->
+   [
+   !VB( $V, ~e, ~K ),
+   Out( <'COMMIT', $V, ~e, h(~K), sign(<'COMMIT', $V, ~e, h(~K)>, ~ltkV)> )
+   ]
+
+  /* has exactly the trivial AC variant */
+
+rule (modulo E) V_broadcast:
+   [ !VB( $V, e, K ), Fr( ~rep ) ]
+  --[ Sent( $V, e, ~rep ) ]->
+   [ Out( <'POS', $V, e, ~rep, mac(K, <$V, e, ~rep>)> ) ]
+
+  /* has exactly the trivial AC variant */
+
+rule (modulo E) V_disclose:
+   [ !VB( $V, e, K ) ]
+  --[ Disclose( $V, e ) ]->
+   [ Out( <'KEY', $V, e, K> ) ]
+
+  /* has exactly the trivial AC variant */
+
+rule (modulo E) R_receive:
+   [
+   !Pk( $V, pkV ), In( <'COMMIT', $V, e, c, sg> ),
+   In( <'POS', $V, e, rep, t> ), Fr( ~rid )
+   ]
+  --[
+  Eq( verify(sg, <'COMMIT', $V, e, c>, pkV), true ),
+  Received( ~rid, $V, e, rep )
+  ]->
+   [ R1( ~rid, $V, e, c, rep, t ) ]
+
+  /*
+  rule (modulo AC) R_receive:
+     [
+     !Pk( $V, pkV ), In( <'COMMIT', $V, e, c, sg> ),
+     In( <'POS', $V, e, rep, t> ), Fr( ~rid )
+     ]
+    --[ Eq( z, true ), Received( ~rid, $V, e, rep ) ]->
+     [ R1( ~rid, $V, e, c, rep, t ) ]
+    variants (modulo AC)
+    1. $V    = $V.19
+       c     = c.21
+       e     = e.22
+       pkV   = pkV.23
+       sg    = sg.25
+       z     = verify(sg.25, <'COMMIT', $V.19, e.22, c.21>, pkV.23)
+    
+    2. $V    = $V.28
+       c     = c.30
+       e     = e.31
+       pkV   = pk(x.54)
+       sg    = sign(<'COMMIT', $V.28, e.31, c.30>, x.54)
+       z     = true
+  */
+
+rule (modulo E) R_accept:
+   [ R1( rid, $V, e, c, rep, t ), In( <'KEY', $V, e, K> ) ]
+  --[
+  Eq( c, h(K) ), Eq( t, mac(K, <$V, e, rep>) ), Accept( rid, $V, e, rep )
+  ]->
+   [ ]
+
+  /* has exactly the trivial AC variant */
+
+restriction Equality:
+  "∀ x y #i. (Eq( x, y ) @ #i) ⇒ (x = y)"
+  // safety formula
+
+restriction ReceivedBeforeDisclosure:
+  "∀ rid V e rep #r #d.
+    ((Received( rid, V, e, rep ) @ #r) ∧ (Disclose( V, e ) @ #d)) ⇒
+    (#r < #d)"
+  // safety formula
+
+lemma broadcast_executable:
+  exists-trace
+  "∃ rid V e rep #i.
+    (Accept( rid, V, e, rep ) @ #i) ∧ (¬(∃ A #r. RevLtk( A ) @ #r))"
+/*
+guarded formula characterizing all satisfying traces:
+"∃ rid V e rep #i.
+  (Accept( rid, V, e, rep ) @ #i) ∧ ∀ A #r. (RevLtk( A ) @ #r) ⇒ ⊥"
+*/
+simplify
+solve( R1( rid, $V, e, h(K), rep, mac(K, <$V, e, rep>) ) ▶₀ #i )
+  case R_receive
+  solve( !KU( sign(<'COMMIT', $V, e, h(K)>, ~ltk) ) @ #vk.16 )
+    case V_commit
+    solve( !KU( ~K ) @ #vk.13 )
+      case V_disclose
+      solve( !KU( mac(~K, <$V, ~e, rep>) ) @ #vk.20 )
+        case V_broadcast
+        solve( !KU( ~e ) @ #vk.14 )
+          case V_broadcast
+          solve( !KU( ~rep ) @ #vk.20 )
+            case V_broadcast
+            solve( !KU( h(~K) ) @ #vk.19 )
+              case V_commit
+              SOLVED // trace found
+            qed
+          qed
+        qed
+      qed
+    qed
+  qed
+qed
+
+lemma epoch_key_secret_until_disclosure [reuse]:
+  all-traces
+  "∀ V e K #i #j.
+    ((Commit_Key( V, e, K ) @ #i) ∧ (K( K ) @ #j)) ⇒
+    (∃ #d. (Disclose( V, e ) @ #d) ∧ (#d < #j))"
+/*
+guarded formula characterizing all counter-examples:
+"∃ V e K #i #j.
+  (Commit_Key( V, e, K ) @ #i) ∧ (K( K ) @ #j)
+ ∧
+  ∀ #d. (Disclose( V, e ) @ #d) ⇒ ¬(#d < #j)"
+*/
+simplify
+solve( !Ltk( $V, ~ltkV ) ▶₂ #i )
+  case Register_pk
+  solve( !KU( ~K ) @ #vk )
+    case V_disclose
+    by contradiction /* from formulas */
+  qed
+qed
+
+lemma broadcast_authenticity:
+  all-traces
+  "∀ rid V e rep #i.
+    (Accept( rid, V, e, rep ) @ #i) ⇒
+    ((∃ #j. (Sent( V, e, rep ) @ #j) ∧ (#j < #i)) ∨
+     (∃ #r. RevLtk( V ) @ #r))"
+/*
+guarded formula characterizing all counter-examples:
+"∃ rid V e rep #i.
+  (Accept( rid, V, e, rep ) @ #i)
+ ∧
+  (∀ #j. (Sent( V, e, rep ) @ #j) ⇒ ¬(#j < #i)) ∧
+  (∀ #r. (RevLtk( V ) @ #r) ⇒ ⊥)"
+*/
+simplify
+solve( R1( rid, $V, e, h(K), rep, mac(K, <$V, e, rep>) ) ▶₀ #i )
+  case R_receive
+  solve( !KU( sign(<'COMMIT', $V, e, h(K)>, ~ltk) ) @ #vk.16 )
+    case V_commit
+    solve( !KU( ~K ) @ #vk.13 )
+      case V_disclose
+      solve( !KU( mac(~K, <$V, ~e, rep>) ) @ #vk.20 )
+        case V_broadcast
+        by contradiction /* from formulas */
+      next
+        case c_mac
+        by contradiction /* cyclic */
+      qed
+    qed
+  next
+    case c_sign
+    solve( !KU( ~ltk ) @ #vk.24 )
+      case Reveal_ltk
+      by contradiction /* from formulas */
+    qed
+  qed
+qed
+
+lemma sanity_authenticity_needs_uncompromised_key:
+  all-traces
+  "∀ rid V e rep #i.
+    (Accept( rid, V, e, rep ) @ #i) ⇒ (∃ #j. Sent( V, e, rep ) @ #j)"
+/*
+guarded formula characterizing all counter-examples:
+"∃ rid V e rep #i.
+  (Accept( rid, V, e, rep ) @ #i) ∧ ∀ #j. (Sent( V, e, rep ) @ #j) ⇒ ⊥"
+*/
+simplify
+solve( R1( rid, $V, e, h(K), rep, mac(K, <$V, e, rep>) ) ▶₀ #i )
+  case R_receive
+  solve( !KU( sign(<'COMMIT', $V, e, h(K)>, ~ltk) ) @ #vk.16 )
+    case c_sign
+    solve( !KU( ~ltk ) @ #vk.24 )
+      case Reveal_ltk
+      solve( !KU( h(K) ) @ #vk.20 )
+        case V_commit
+        solve( !KU( ~K ) @ #vk.19 )
+          case V_disclose
+          solve( !KU( mac(~K, <$V, e, rep>) ) @ #vk.24 )
+            case c_mac
+            SOLVED // trace found
+          qed
+        qed
+      qed
+    qed
+  qed
+qed
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* All wellformedness checks were successful. */
+
+/*
+Generated from:
+Tamarin version 1.10.0
+Maude version 3.5
+Git revision: cb62c305f8c8b8c1e664152aa33c95b7b8d5ef32, branch: master
+Compiled at: 2024-10-30 11:11:02.432289291 UTC
+*/
+
+end
+
+==============================================================================
+summary of summaries:
+
+analyzed: broadcast.spthy
+
+  processing time: 1.15s
+  
+  broadcast_executable (exists-trace): verified (9 steps)
+  epoch_key_secret_until_disclosure (all-traces): verified (4 steps)
+  broadcast_authenticity (all-traces): verified (9 steps)
+  sanity_authenticity_needs_uncompromised_key (all-traces): falsified - found trace (8 steps)
+
+==============================================================================

@@ -1,0 +1,9 @@
+{
+ "vessels_release": 2875,
+ "vessels_with_windows": 2820,
+ "vessels_excluded": 55,
+ "voyages_shorter_than_window": 1541,
+ "windows_dropped_gap": 0,
+ "excluded_max_voyage_len_min": 25,
+ "excluded_max_voyage_len_max": 35
+}
